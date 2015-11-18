@@ -329,7 +329,7 @@ reshape(t, [3, 3]) ==> [[1, 2, 3]
 
 # tensor 't' is [[[1, 1], [2, 2]]
 #                [[3, 3], [4, 4]]]
-# tensor 't' has shape [2, 2]
+# tensor 't' has shape [2, 2, 2]
 reshape(t, [2, 4]) ==> [[1, 1, 2, 2]
                         [3, 3, 4, 4]]
 
@@ -529,7 +529,7 @@ tf.shape(split0) ==> [5, 10]
 
 *  <b>`split_dim`</b>: A 0-D `int32` `Tensor`. The dimension along which to split.
     Must be in the range `[0, rank(value))`.
-*  <b>`num_split`</b>: A 0-D `int32` `Tensor`. The number of ways to split.
+*  <b>`num_split`</b>: A Python integer. The number of ways to split.
 *  <b>`value`</b>: The `Tensor` to split.
 *  <b>`name`</b>: A name for the operation (optional).
 

@@ -163,7 +163,7 @@ def range_input_producer(limit, num_epochs=None, shuffle=True, seed=None,
     is added to the current Graph's QUEUE_RUNNER collection.
   """
   with ops.op_scope([limit], name, "input_producer") as name:
-    range_tensor = math_ops.range(0, limit)
+    range_tensor = math_ops.range(limit)
     return _input_producer(
         range_tensor, types.int32, num_epochs, shuffle, seed, capacity, name,
         "fraction_of_%d_full" % capacity)
@@ -243,7 +243,7 @@ def _merge_shapes(shape_list, enqueue_many):
   shape_list = [tensor_shape.as_shape(s) for s in shape_list]
   if enqueue_many:
     # We want the shapes without the leading batch dimension.
-    shape_list = [s.WithRankAtLeast(1)[1:] for s in shape_list]
+    shape_list = [s.with_rank_at_least(1)[1:] for s in shape_list]
   merged_shape = shape_list[0]
   for s in shape_list[1:]:
     merged_shape.merge_with(s)
@@ -445,7 +445,8 @@ def shuffle_batch(tensor_list, batch_size, capacity, min_after_dequeue,
         capacity=capacity, min_after_dequeue=min_after_dequeue, seed=seed,
         dtypes=dtypes, shapes=shapes)
     _enqueue(queue, tensor_list, num_threads, enqueue_many)
-    full = (math_ops.cast(queue.size() - min_after_dequeue, types.float32) *
+    full = (math_ops.cast(math_ops.maximum(0, queue.size() - min_after_dequeue),
+                          types.float32) *
             (1. / (capacity - min_after_dequeue)))
     # Note that name contains a '/' at the end so we intentionally do not place
     # a '/' after %s below.
@@ -513,7 +514,8 @@ def shuffle_batch_join(tensor_list_list, batch_size, capacity,
         capacity=capacity, min_after_dequeue=min_after_dequeue, seed=seed,
         dtypes=dtypes, shapes=shapes)
     _enqueue_join(queue, tensor_list_list, enqueue_many)
-    full = (math_ops.cast(queue.size() - min_after_dequeue, types.float32) *
+    full = (math_ops.cast(math_ops.maximum(0, queue.size() - min_after_dequeue),
+                          types.float32) *
             (1. / (capacity - min_after_dequeue)))
     # Note that name contains a '/' at the end so we intentionally do not place
     # a '/' after %s below.

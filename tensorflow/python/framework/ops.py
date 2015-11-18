@@ -1327,7 +1327,7 @@ class RegisterGradient(object):
       op_type: The string type of an operation. This corresponds to the
         `OpDef.name` field for the proto that defines the operation.
     """
-    if not isinstance(op_type, basestring):
+    if not isinstance(op_type, six.string_types):
       raise TypeError("op_type must be a string")
     self._op_type = op_type
 
@@ -1356,7 +1356,7 @@ def NoGradient(op_type):
     TypeError: If `op_type` is not a string.
 
   """
-  if not isinstance(op_type, basestring):
+  if not isinstance(op_type, six.string_types):
     raise TypeError("op_type must be a string")
   _gradient_registry.register(None, op_type)
 
@@ -1400,7 +1400,7 @@ class RegisterShape(object):
 
   def __init__(self, op_type):
     """Saves the "op_type" as the Operation type."""
-    if not isinstance(op_type, basestring):
+    if not isinstance(op_type, six.string_types):
       raise TypeError("op_type must be a string")
     self._op_type = op_type
 
@@ -1551,6 +1551,8 @@ class Graph(object):
     # True if the graph is considered "finalized".  In that case no
     # new operations can be added.
     self._finalized = False
+    # Functions defined in the graph
+    self._functions = collections.OrderedDict()
 
   def _check_not_finalized(self):
     """Check if the graph is finalized.
@@ -1645,6 +1647,9 @@ class Graph(object):
     Returns:
       A [`GraphDef`](https://tensorflow.googlesource.com/tensorflow/+/master/tensorflow/core/framework/graph.proto)
       protocol buffer.
+
+    Raises:
+      ValueError: If the graph_def would be too large.
     """
     graph = graph_pb2.GraphDef()
     bytesize = 0
@@ -1655,7 +1660,36 @@ class Graph(object):
         bytesize += op.node_def.ByteSize()
         if bytesize >= (1 << 31) or bytesize < 0:
           raise ValueError("GraphDef cannot be larger than 2GB.")
+    if self._functions:
+      for f in self._functions.values():
+        bytesize += f.ByteSize()
+        if bytesize >= (1 << 31) or bytesize < 0:
+          raise ValueError("GraphDef cannot be larger than 2GB.")
+      graph.library.function.extend(self._functions.values())
     return graph
+
+  def _add_function(self, function_def):
+    """Adds a function to the graph.
+
+    The function is specified as a [`FunctionDef`]
+    (https://tensorflow.googlesource.com/tensorflow/+/master/tensorflow/core/framework/function.proto)
+    protocol buffer.
+
+    After the function has been added, you can call to the function by
+    passing the function name in place of an op name to
+    `Graph.create_op()`.
+
+    Args:
+      function_def: A `FunctionDef` protocol buffer.
+    """
+    previous_def = self._functions.get(function_def.signature.name, None)
+    if previous_def:
+      if previous_def != function_def:
+        raise ValueError("Another function is already defined with that name")
+      else:
+        # No need to add again.
+        return
+    self._functions[function_def.signature.name] = function_def
 
   # Helper functions to create operations.
   def create_op(self, op_type, inputs, dtypes,
@@ -1794,7 +1828,7 @@ class Graph(object):
       obj = conv_fn()
 
     # If obj appears to be a name...
-    if isinstance(obj, basestring):
+    if isinstance(obj, six.string_types):
       name = obj
 
       if ":" in name and allow_tensor:
@@ -1847,9 +1881,13 @@ class Graph(object):
 
     elif isinstance(obj, Tensor) and allow_tensor:
       # Actually obj is just the object it's referring to.
+      if obj.graph is not self:
+        raise ValueError("Tensor %s is not an element of this graph." % obj)
       return obj
     elif isinstance(obj, Operation) and allow_operation:
       # Actually obj is just the object it's referring to.
+      if obj.graph is not self:
+        raise ValueError("Operation %s is not an element of this graph." % obj)
       return obj
     else:
       # We give up!
@@ -1869,7 +1907,6 @@ class Graph(object):
       A list of Operations.
     """
     return list(self._nodes_by_id.values())
-
   def get_operation_by_name(self, name):
     """Returns the `Operation` with the given `name`.
 
@@ -1886,7 +1923,7 @@ class Graph(object):
       KeyError: If `name` does not correspond to an operation in this graph.
     """
 
-    if not isinstance(name, basestring):
+    if not isinstance(name, six.string_types):
       raise TypeError("Operation names are strings (or similar), not %s."
                       % type(name).__name__)
     return self.as_graph_element(name, allow_tensor=False, allow_operation=True)
@@ -1907,7 +1944,7 @@ class Graph(object):
       KeyError: If `name` does not correspond to a tensor in this graph.
     """
     # Names should be strings.
-    if not isinstance(name, basestring):
+    if not isinstance(name, six.string_types):
       raise TypeError("Tensor names are strings (or similar), not %s."
                       % type(name).__name__)
     return self.as_graph_element(name, allow_tensor=True, allow_operation=False)
@@ -2421,6 +2458,7 @@ class Graph(object):
     control_ops = []
     current = self._current_control_dependencies()
     for c in control_inputs:
+      c = self.as_graph_element(c)
       if isinstance(c, Tensor):
         c = c.op
       elif not isinstance(c, Operation):
@@ -2472,8 +2510,8 @@ class Graph(object):
     saved_labels = {}
     # Install the given label
     for op_type, label in op_to_kernel_label_map.items():
-      if not (isinstance(op_type, basestring)
-              and isinstance(label, basestring)):
+      if not (isinstance(op_type, six.string_types)
+              and isinstance(label, six.string_types)):
         raise TypeError("op_to_kernel_label_map must be a dictionary mapping "
                         "strings to strings")
       try:
@@ -2535,8 +2573,8 @@ class Graph(object):
     saved_mappings = {}
     # Install the given label
     for op_type, mapped_op_type in op_type_map.items():
-      if not (isinstance(op_type, basestring)
-              and isinstance(mapped_op_type, basestring)):
+      if not (isinstance(op_type, six.string_types)
+              and isinstance(mapped_op_type, six.string_types)):
         raise TypeError("op_type_map must be a dictionary mapping "
                         "strings to strings")
       try:

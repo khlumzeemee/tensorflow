@@ -1,15 +1,15 @@
 #include "tensorflow/core/common_runtime/gpu/process_state.h"
 
-#include "tensorflow/core/framework/allocator.h"
-#include "tensorflow/core/common_runtime/gpu/gpu_init.h"
+#include "tensorflow/stream_executor/multi_platform_manager.h"
 #include "tensorflow/core/common_runtime/gpu/gpu_bfc_allocator.h"
 #include "tensorflow/core/common_runtime/gpu/gpu_debug_allocator.h"
+#include "tensorflow/core/common_runtime/gpu/gpu_init.h"
 #include "tensorflow/core/common_runtime/gpu/gpu_region_allocator.h"
 #include "tensorflow/core/common_runtime/gpu/pool_allocator.h"
+#include "tensorflow/core/framework/allocator.h"
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/port.h"
-#include "tensorflow/stream_executor/multi_platform_manager.h"
 
 #if defined(PLATFORM_GOOGLE)
 DEFINE_bool(record_mem_types, false,
@@ -20,7 +20,7 @@ DEFINE_bool(record_mem_types, false,
 DEFINE_bool(brain_mem_reg_cuda_dma, true,
             "If true, register CPU RAM used to copy to/from GPU RAM "
             "with the CUDA driver.");
-DEFINE_bool(brain_gpu_use_bfc_allocator, false,
+DEFINE_bool(brain_gpu_use_bfc_allocator, true,
             "If true, uses the Best-Fit GPU allocator.");
 DEFINE_bool(brain_gpu_region_allocator_debug, false,
             "If true, checks for memory overwrites by writing "
@@ -34,7 +34,7 @@ bool FLAGS_record_mem_types = false;
 bool FLAGS_brain_mem_reg_cuda_dma = true;
 bool FLAGS_brain_gpu_region_allocator_debug = false;
 bool FLAGS_brain_gpu_region_allocator_reset_to_nan = false;
-bool FLAGS_brain_gpu_use_bfc_allocator = false;
+bool FLAGS_brain_gpu_use_bfc_allocator = true;
 #endif
 
 namespace gpu = ::perftools::gputools;

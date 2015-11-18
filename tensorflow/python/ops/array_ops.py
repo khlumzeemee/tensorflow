@@ -409,7 +409,7 @@ def split(split_dim, num_split, value, name="split"):
   Args:
     split_dim: A 0-D `int32` `Tensor`. The dimension along which to split.
       Must be in the range `[0, rank(value))`.
-    num_split: A 0-D `int32` `Tensor`. The number of ways to split.
+    num_split: A Python integer. The number of ways to split.
     value: The `Tensor` to split.
     name: A name for the operation (optional).
 
@@ -624,7 +624,7 @@ def placeholder(dtype, shape=None, name=None):
   For example:
 
   ```python
-  x = tf.placeholder(float, shape=(1024, 1024))
+  x = tf.placeholder(tf.float32, shape=(1024, 1024))
   y = tf.matmul(x, x)
 
   with tf.Session() as sess:
